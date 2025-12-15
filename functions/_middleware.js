@@ -1,14 +1,19 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-
-  // 放行静态资源（可按需精简/扩展）
   const path = url.pathname;
-  const allow = [
+
+  // 允许未登录访问的路径（门户本身）
+  const publicPaths = [
+    "/",
+    "/index.html",
     "/favicon.ico"
   ];
-  if (allow.includes(path)) return context.next();
 
-  // 校验登录态：把用户的 Cookie 透传给 auth.szdblc.cn/session
+  if (publicPaths.includes(path)) {
+    return context.next();
+  }
+
+  // 校验登录态（把 Cookie 传给 auth-api）
   const cookie = context.request.headers.get("Cookie") || "";
   const check = await fetch("https://auth.szdblc.cn/session", {
     method: "GET",
@@ -16,9 +21,9 @@ export async function onRequest(context) {
   });
 
   if (check.ok) {
-    return context.next(); // 已登录，放行
+    return context.next(); // 已登录
   }
 
-  // 未登录：跳转回门户登录页
+  // 未登录 → 回到门户首页
   return Response.redirect("https://szdblc.cn", 302);
 }
