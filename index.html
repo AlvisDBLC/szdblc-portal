@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>川丞系统入口</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1620;
+      --line:#1b2a3a;
+      --text:#eaf2ff;
+      --muted:#9fb2c8;
+      --neon:#39ff14;
+    }
+    body{margin:0;background:radial-gradient(1200px 600px at 20% 10%, #102033 0%, var(--bg) 55%), var(--bg);
+      color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",Arial;}
+    .wrap{max-width:980px;margin:0 auto;padding:28px;}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+    .brand{display:flex;align-items:center;gap:12px;}
+    .dot{width:12px;height:12px;border-radius:999px;background:var(--neon);box-shadow:0 0 18px rgba(57,255,20,.55);}
+    h1{font-size:18px;margin:0;font-weight:750;letter-spacing:.5px}
+    .sub{color:var(--muted);font-size:12px;margin-top:6px}
+    .panel{margin-top:18px;border:1px solid var(--line);background:linear-gradient(180deg, rgba(15,22,32,.92), rgba(10,14,20,.92));
+      border-radius:16px;padding:18px;}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    input{flex:1;min-width:220px;border:1px solid var(--line);background:#0b121a;color:var(--text);
+      padding:12px 12px;border-radius:12px;outline:none}
+    input:focus{border-color:rgba(57,255,20,.55);box-shadow:0 0 0 3px rgba(57,255,20,.12)}
+    button{border:1px solid var(--line);background:#0e1720;color:var(--text);padding:12px 14px;border-radius:12px;cursor:pointer}
+    button:hover{border-color:rgba(57,255,20,.35)}
+    .primary{border-color:rgba(57,255,20,.55)}
+    .hint{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5}
+    .nav{display:grid;grid-template-columns:1fr;gap:14px;margin-top:18px}
+    .nav a{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:18px 18px;border-radius:16px;border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(10,18,26,.9), rgba(6,10,14,.9));
+      color:var(--text);text-decoration:none;
+    }
+    .nav a:hover{border-color:rgba(57,255,20,.35);transform:translateY(-1px)}
+    .nav .title{font-size:16px;font-weight:750}
+    .nav .desc{color:var(--muted);font-size:12px;margin-top:6px}
+    .badge{color:var(--neon);font-size:12px;border:1px solid rgba(57,255,20,.45);padding:6px 10px;border-radius:999px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <h1>川丞内部系统入口</h1>
+          <div class="sub">Deep Space Gray × Neon Green</div>
+        </div>
+      </div>
+      <button id="logoutBtn" class="hidden">退出登录</button>
+    </div>
+
+    <div id="loginPanel" class="panel">
+      <div class="row">
+        <input id="u" placeholder="用户名" autocomplete="username"/>
+        <input id="p" placeholder="密码" type="password" autocomplete="current-password"/>
+        <button id="loginBtn" class="primary">登录</button>
+      </div>
+      <div class="hint" id="loginHint">仅限内部人员使用。登录后会显示系统入口按钮。</div>
+    </div>
+
+    <div id="navPanel" class="panel hidden">
+      <div class="sub" id="who"></div>
+
+      <div class="nav">
+        <a href="https://label.szdblc.cn">
+          <div>
+            <div class="title">送货标签生成系统</div>
+            <div class="desc">10×10cm 标签 | 批量多页 PDF | 共享历史记录</div>
+          </div>
+          <div class="badge">进入</div>
+        </a>
+
+        <!-- 以后新增系统：复制一段 <a>…</a> 放这里即可 -->
+      </div>
+
+      <div class="hint">新增系统时：只要增加一个子域名（如 qc.szdblc.cn）并在此处加一个按钮。</div>
+    </div>
+  </div>
+
+<script>
+  async function api(path, opts={}) {
+    const r = await fetch("https://auth.szdblc.cn" + path, {
+      ...opts,
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(opts.headers||{}) }
+    });
+    const data = await r.json().catch(()=> ({}));
+    return { ok: r.ok, status: r.status, data };
+  }
+
+  const loginPanel = document.getElementById("loginPanel");
+  const navPanel = document.getElementById("navPanel");
+  const loginHint = document.getElementById("loginHint");
+  const who = document.getElementById("who");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  async function refresh() {
+    const res = await api("/session");
+    if (res.ok) {
+      loginPanel.classList.add("hidden");
+      navPanel.classList.remove("hidden");
+      logoutBtn.classList.remove("hidden");
+      who.textContent = "当前登录用户：" + (res.data.user?.username || "");
+    } else {
+      loginPanel.classList.remove("hidden");
+      navPanel.classList.add("hidden");
+      logoutBtn.classList.add("hidden");
+    }
+  }
+
+  document.getElementById("loginBtn").onclick = async () => {
+    loginHint.textContent = "正在登录…";
+    const username = document.getElementById("u").value.trim();
+    const password = document.getElementById("p").value;
+    const res = await api("/login", { method: "POST", body: JSON.stringify({ username, password }) });
+    if (res.ok) {
+      loginHint.textContent = "登录成功";
+      await refresh();
+    } else {
+      loginHint.textContent = "登录失败：用户名或密码错误";
+    }
+  };
+
+  logoutBtn.onclick = async () => {
+    await api("/logout", { method: "POST" });
+    await refresh();
+  };
+
+  refresh();
+</script>
+</body>
+</html>
